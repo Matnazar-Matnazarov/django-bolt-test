@@ -15,7 +15,11 @@ Structure:
 from django_bolt import BoltAPI
 
 from api.middleware import ServerTimeMiddleware
+from api.openapi_config import get_openapi_config
 from api.routes import register_all_routes
 
-api = BoltAPI(middleware=[ServerTimeMiddleware])
+api = BoltAPI(
+    middleware=[ServerTimeMiddleware],
+    openapi_config=get_openapi_config(),
+)
 register_all_routes(api)

@@ -135,6 +135,11 @@ uv run manage.py runbolt --dev --host localhost --port 8000
 
 Interactive OpenAPI docs at `/docs` — Auth, Health, Users, WebSocket endpoints and schemas (LoginSchema, TokenSchema, UserSchema, UserCreateSchema).
 
+**Authenticated requests in Swagger:**  
+1. Call **POST /auth/login** with `username` and `password` to get `access_token`.  
+2. Click **Authorize** (top right), enter `Bearer <your_access_token>` and confirm.  
+3. Protected endpoints (e.g. **GET /users/me**, **POST /users**) will then send the token automatically.
+
 <p align="center">
   <img src="swagger.png" alt="Swagger UI — Django Bolt Test API" width="800"/>
 </p>
