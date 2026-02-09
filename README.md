@@ -1,10 +1,4 @@
 <p align="center">
-  <a href="https://github.com/FarhanAliRaza/django-bolt" target="_blank">
-    <img src="assets/logo.png" alt="Django Bolt" width="320"/>
-  </a>
-</p>
-
-<p align="center">
   <a href="https://www.djangoproject.com/" target="_blank">
     <img src="https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white" alt="Django" height="28"/>
   </a>
@@ -26,7 +20,7 @@
 </p>
 
 <p align="center">
-  JWT · Roles · Pagination · Search · Health checks · WebSocket · OpenAPI/Swagger · Tests
+  JWT · Pagination · Search · Health checks · WebSocket · OpenAPI/Swagger · Tests
 </p>
 
 ---
@@ -36,14 +30,13 @@
 | Area | Description |
 |------|-------------|
 | **Auth** | JWT via `POST /auth/login`; `GET /users/me` and `POST /users` require JWT |
-| **Roles** | User roles (ADMIN, SHOPKEEPER, CUSTOMER); `GET /roles`, filter users by `?role=` |
 | **Health** | `GET /health` (liveness), `GET /ready` (readiness + DB) |
-| **Users** | List (paginated, `?search=`, `?role=`), get by ID, current user, create with role (staff only) |
+| **Users** | List (paginated, `?search=`), get by ID, current user, create (staff only) |
 | **Pagination** | `GET /users?page=1&page_size=10` (page-number) |
 | **Permissions** | `AllowAny` (list, get), `IsAuthenticated` + `IsStaff` (create user) |
 | **WebSocket** | `WS /ws` echo (text + JSON) |
 | **Observability** | `X-Server-Time`, `X-Response-Time` on every response |
-| **Docs** | OpenAPI/Swagger at `/docs` (JWT Authorize), Django Admin at `/admin/` |
+| **Docs** | OpenAPI/Swagger at `/docs`, Django Admin at `/admin/` |
 
 ---
 
@@ -55,7 +48,7 @@
 | [Django](https://www.djangoproject.com/) 6.x | Web framework |
 | [Django Bolt](https://github.com/FarhanAliRaza/django-bolt) 0.5.x | Async API layer |
 | [msgspec](https://github.com/jcrist/msgspec) | Schemas & serialization |
-| [pytest](https://pytest.org/) | Testing (sync TestClient, no server required) |
+| [pytest](https://pytest.org/) | Testing (unit + integration) |
 | [uv](https://github.com/astral-sh/uv) | Dependency management |
 
 ---
@@ -64,32 +57,30 @@
 
 ```
 django-bolt-test/
-├── api/                         # Bolt API package
-│   ├── __init__.py               # BoltAPI instance, middleware, register routes
-│   ├── middleware.py             # X-Server-Time, X-Response-Time
-│   ├── openapi_config.py        # JWT Bearer in Swagger
+├── api/                      # Bolt API package
+│   ├── __init__.py            # BoltAPI instance, middleware, register routes
+│   ├── middleware.py          # X-Server-Time, X-Response-Time
 │   └── routes/
-│       ├── __init__.py          # register_all_routes(api)
-│       ├── health.py            # /health, /ready
-│       ├── auth.py              # POST /auth/login
-│       ├── roles.py             # GET /roles, GET /roles/code/{code}
-│       ├── users.py             # GET/POST /users, /users/me
-│       └── websocket.py         # WS /ws
-├── config/                      # Django project
-│   ├── api.py                   # Re-export: from api import api
+│       ├── __init__.py        # register_all_routes(api)
+│       ├── health.py          # /health, /ready
+│       ├── auth.py            # POST /auth/login
+│       ├── users.py           # GET/POST /users, /users/me
+│       └── websocket.py       # WS /ws
+├── config/                    # Django project
+│   ├── api.py                 # Re-export: from api import api
 │   ├── settings.py
-│   └── urls.py                  # admin only
-├── accounts/                    # Django app
-│   ├── schemas.py               # UserSchema, RoleSchema, LoginSchema, TokenSchema, UserCreateSchema
-│   ├── models.py                # User (AbstractUser), Role (TextChoices)
-│   └── admin.py
+│   └── urls.py                # admin only
+├── accounts/                  # Django app
+│   ├── schemas.py             # UserSchema, LoginSchema, TokenSchema, UserCreateSchema
+│   ├── admin.py
+│   └── models.py
 ├── tests/
-│   ├── conftest.py              # api, client (TestClient), test_user, PostgreSQL teardown
-│   ├── test_health.py, test_auth.py, test_users.py, test_roles.py
-│   ├── test_schemas.py, test_websocket.py
-│   └── ...
-├── assets/
-│   └── django-bolt-logo.png     # Django Bolt branding
+│   ├── conftest.py            # require_server fixture
+│   ├── test_health.py
+│   ├── test_auth.py
+│   ├── test_users.py
+│   ├── test_websocket.py
+│   └── test_schemas.py
 ├── manage.py
 ├── pyproject.toml
 └── requirements.txt
@@ -101,7 +92,6 @@ django-bolt-test/
 
 - **Python** 3.13+
 - **[uv](https://github.com/astral-sh/uv)** (recommended) or pip
-- **PostgreSQL** (or set `DATABASES` in settings for SQLite)
 
 ---
 
@@ -115,8 +105,6 @@ uv venv
 uv sync
 # or: pip install -r requirements.txt
 ```
-
-Copy `.env.example` to `.env` and set `SECRET_KEY`, `DB_*` (for PostgreSQL).
 
 ---
 
@@ -145,7 +133,7 @@ uv run manage.py runbolt --dev --host localhost --port 8000
 
 ## API Documentation (Swagger)
 
-Interactive OpenAPI docs at `/docs` — Auth, Health, Roles, Users, WebSocket and schemas (LoginSchema, TokenSchema, UserSchema, UserCreateSchema, RoleSchema).
+Interactive OpenAPI docs at `/docs` — Auth, Health, Users, WebSocket endpoints and schemas (LoginSchema, TokenSchema, UserSchema, UserCreateSchema).
 
 **Authenticated requests in Swagger:**  
 1. Call **POST /auth/login** with `username` and `password` to get `access_token`.  
@@ -167,12 +155,10 @@ Interactive OpenAPI docs at `/docs` — Auth, Health, Roles, Users, WebSocket an
 | GET | `/health` | Liveness | — |
 | GET | `/ready` | Readiness (DB + checks) | — |
 | POST | `/auth/login` | JWT token (body: `username`, `password`) | — |
-| GET | `/roles` | List roles (ADMIN, SHOPKEEPER, CUSTOMER) | — |
-| GET | `/roles/code/{code}` | Get role by code | — |
-| GET | `/users` | List users (paginated, `?search=`, `?role=`) | — |
+| GET | `/users` | List users (paginated, `?search=`) | — |
 | GET | `/users/{id}` | Get user by ID | — |
 | GET | `/users/me` | Current user | JWT |
-| POST | `/users` | Create user with role (staff only) | JWT + Staff |
+| POST | `/users` | Create user (staff only) | JWT + Staff |
 | WS | `/ws` | Echo WebSocket | — |
 
 - **Response headers** (all): `X-Server-Time`, `X-Response-Time`.
@@ -182,16 +168,15 @@ Interactive OpenAPI docs at `/docs` — Auth, Health, Roles, Users, WebSocket an
 
 ## Testing
 
-Tests use **pytest** with Django Bolt’s sync **TestClient** (no running server). Database tests use pytest-django with `transactional_db`; PostgreSQL test DB teardown is handled in `conftest.py`.
+Tests are written with **[pytest](https://pytest.org/)** (unit and integration). Unit tests need no server; integration tests call the live API and skip automatically if the server is not running (`require_server` fixture).
 
-```bash
-uv run pytest tests/ -v
-```
+| Type | Command | Notes |
+|------|---------|--------|
+| **Unit** | `uv run pytest tests/test_schemas.py -v` | No server; schemas only |
+| **Integration** | `uv run pytest tests/ -v -m integration` | Start server first |
+| **All** | `uv run pytest tests/ -v` | Unit runs; integration skips if server down |
 
-| Type | Command |
-|------|---------|
-| **All** | `uv run pytest tests/ -v` |
-| **Single file** | `uv run pytest tests/test_auth.py -v` |
+**Stack:** pytest, pytest-django, pytest-asyncio, httpx, websockets. Install dev deps: `uv sync --extra dev`.
 
 ---
 
@@ -204,7 +189,6 @@ In `config/settings.py`:
 | `BOLT_JWT_SECRET` | `SECRET_KEY` |
 | `BOLT_JWT_ALGORITHM` | `"HS256"` |
 | `BOLT_JWT_EXPIRES_SECONDS` | `3600` |
-| `AUTH_USER_MODEL` | `"accounts.User"` |
 
 ---
 
