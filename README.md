@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  JWT · Roles · Pagination · Search · Health checks · WebSocket · OpenAPI/Swagger · Tests
+  JWT · Roles · Pagination · Search · Health checks · WebSocket · DRF · OpenAPI/Swagger · Tests
 </p>
 
 ---
@@ -43,6 +43,7 @@
 | **Permissions** | `AllowAny` (list, get), `IsAuthenticated` + `IsStaff` (create user) |
 | **WebSocket** | `WS /ws` echo (text + JSON) |
 | **Observability** | `X-Server-Time`, `X-Response-Time` on every response |
+| **DRF** | Django REST Framework at `/drf/` (JWT via SimpleJWT, same endpoints as Bolt) |
 | **Docs** | OpenAPI/Swagger at `/docs` (JWT Authorize), Django Admin at `/admin/` |
 
 ---
@@ -55,6 +56,8 @@
 | [Django](https://www.djangoproject.com/) 6.x | Web framework |
 | [Django Bolt](https://github.com/FarhanAliRaza/django-bolt) 0.5.x | Async API layer |
 | [msgspec](https://github.com/jcrist/msgspec) | Schemas & serialization |
+| [Django REST Framework](https://www.django-rest-framework.org/) | REST API (sync) |
+| [djangorestframework-simplejwt](https://github.com/jazzband/djangorestframework-simplejwt) | JWT auth for DRF |
 | [pytest](https://pytest.org/) | Testing (sync TestClient, no server required) |
 | [uv](https://github.com/astral-sh/uv) | Dependency management |
 
@@ -75,10 +78,14 @@ django-bolt-test/
 │       ├── roles.py             # GET /roles, GET /roles/code/{code}
 │       ├── users.py             # GET/POST /users, /users/me
 │       └── websocket.py         # WS /ws
+├── api_drf/                     # DRF API (same endpoints as Bolt)
+│   ├── serializers.py           # UserSerializer, UserCreateSerializer
+│   ├── views.py                 # health, roles, users
+│   └── urls.py                  # /drf/...
 ├── config/                      # Django project
 │   ├── api.py                   # Re-export: from api import api
 │   ├── settings.py
-│   └── urls.py                  # admin only
+│   └── urls.py                  # admin, drf
 ├── accounts/                    # Django app
 │   ├── schemas.py               # UserSchema, RoleSchema, LoginSchema, TokenSchema, UserCreateSchema
 │   ├── models.py                # User (AbstractUser), Role (TextChoices)
@@ -86,8 +93,11 @@ django-bolt-test/
 ├── tests/
 │   ├── conftest.py              # api, client (TestClient), test_user, PostgreSQL teardown
 │   ├── test_health.py, test_auth.py, test_users.py, test_roles.py
-│   ├── test_schemas.py, test_websocket.py
+│   ├── test_drf.py              # DRF API tests
+│   ├── test_schemas.py, test_websocket.py, test_load.py
 │   └── ...
+├── scripts/
+│   └── load_test.py             # Load test: req/sec, success/fail
 ├── assets/
 │   └── django-bolt-logo.png     # Django Bolt branding
 ├── manage.py
@@ -131,15 +141,21 @@ uv run manage.py createsuperuser   # for admin & JWT login
 
 ## Run
 
+**Bolt API** (async, port 8000):
 ```bash
 uv run manage.py runbolt --dev --host localhost --port 8000
 ```
 
-| Resource | URL |
-|----------|-----|
-| API | http://localhost:8000 |
-| Swagger | http://localhost:8000/docs |
-| Admin | http://localhost:8000/admin/ |
+**DRF API** (sync, port 8001):
+```bash
+uv run manage.py runserver 8001
+```
+
+| Resource | Bolt (8000) | DRF (8001) |
+|----------|-------------|------------|
+| API | http://localhost:8000 | http://localhost:8001/drf/ |
+| Swagger | http://localhost:8000/docs | — |
+| Admin | http://localhost:8000/admin/ | http://localhost:8001/admin/ |
 
 ---
 
@@ -178,6 +194,8 @@ Interactive OpenAPI docs at `/docs` — Auth, Health, Roles, Users, WebSocket an
 - **Response headers** (all): `X-Server-Time`, `X-Response-Time`.
 - **JWT:** `Authorization: Bearer <access_token>`.
 
+**DRF** (`/drf/` prefix, runserver 8001): same endpoints, JWT via SimpleJWT (`access`/`refresh` tokens).
+
 ---
 
 ## Testing
@@ -192,6 +210,36 @@ uv run pytest tests/ -v
 |------|---------|
 | **All** | `uv run pytest tests/ -v` |
 | **Single file** | `uv run pytest tests/test_auth.py -v` |
+
+---
+
+## Load Test
+
+Measures **req/sec**, **success** vs **fail** counts, and latency percentiles. Requires a running server.
+
+```bash
+# Bolt (port 8000)
+uv run manage.py runbolt --dev --host localhost --port 8000
+uv run python scripts/load_test.py -a bolt -d 5 -c 50
+
+# DRF (port 8001)
+uv run manage.py runserver 8001
+uv run python scripts/load_test.py -a drf -u http://localhost:8001 -d 5 -c 50
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-a, --api` | `bolt` | API type: `bolt` or `drf` |
+| `-u, --url` | bolt: 8000, drf: 8001 | Base URL |
+| `-d, --duration` | `5` | Duration in seconds |
+| `-c, --concurrency` | `20` | Concurrent workers |
+| `-e, --endpoints` | (per API) | Comma-separated endpoints |
+
+Pytest integration tests (servers must be running):
+
+```bash
+uv run pytest tests/test_load.py -v -m integration
+```
 
 ---
 
