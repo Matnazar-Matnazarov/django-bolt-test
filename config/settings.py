@@ -10,7 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+from datetime import timedelta
 from pathlib import Path
+
+from django_bolt.middleware import CompressionConfig
 from environs import Env
 
 env = Env()
@@ -27,7 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = env.str("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool("DEBUG", default=True)
+DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
 
@@ -41,6 +44,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "rest_framework_simplejwt",
     "django_bolt",
     "accounts",
 ]
@@ -86,6 +91,7 @@ DATABASES = {
         "PASSWORD": env.str("DB_PASSWORD"),
         "HOST": env.str("DB_HOST"),
         "PORT": env.int("DB_PORT"),
+        "CONN_MAX_AGE": 60,
     }
 }
 
@@ -132,3 +138,28 @@ BOLT_JWT_ALGORITHM = "HS256"
 BOLT_JWT_EXPIRES_SECONDS = 3600
 
 AUTH_USER_MODEL = "accounts.User"
+
+# Django REST Framework
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
+    "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
+    "DEFAULT_PARSER_CLASSES": ("rest_framework.parsers.JSONParser",),
+    "DEFAULT_FILTER_BACKENDS": ("rest_framework.filters.SearchFilter",),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+}
+
+# Simple JWT (DRF)
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(seconds=3600),
+}
+
+# Django Bolt compression
+BOLT_COMPRESSION = CompressionConfig(
+    backend="gzip",
+    minimum_size=500,  # Only compress responses > 500 bytes
+)
+
+DJANGO_BOLT_WORKERS = 4
