@@ -10,3 +10,4 @@ def register_all_routes(api):
     roles.register(api)
     users.register(api)
     websocket.register(api)
+    health.health_check(api)
