@@ -1,10 +1,4 @@
 <p align="center">
-  <a href="https://github.com/FarhanAliRaza/django-bolt" target="_blank">
-    <img src="assets/logo.png" alt="Django Bolt" width="320"/>
-  </a>
-</p>
-
-<p align="center">
   <a href="https://www.djangoproject.com/" target="_blank">
     <img src="https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white" alt="Django" height="28"/>
   </a>
@@ -36,9 +30,8 @@
 | Area | Description |
 |------|-------------|
 | **Auth** | JWT via `POST /auth/login`; `GET /users/me` and `POST /users` require JWT |
-| **Roles** | User roles (ADMIN, SHOPKEEPER, CUSTOMER); `GET /roles`, filter users by `?role=` |
 | **Health** | `GET /health` (liveness), `GET /ready` (readiness + DB) |
-| **Users** | List (paginated, `?search=`, `?role=`), get by ID, current user, create with role (staff only) |
+| **Users** | List (paginated, `?search=`), get by ID, current user, create (staff only) |
 | **Pagination** | `GET /users?page=1&page_size=10` (page-number) |
 | **Permissions** | `AllowAny` (list, get), `IsAuthenticated` + `IsStaff` (create user) |
 | **WebSocket** | `WS /ws` echo (text + JSON) |
@@ -67,10 +60,9 @@
 
 ```
 django-bolt-test/
-├── api/                         # Bolt API package
-│   ├── __init__.py               # BoltAPI instance, middleware, register routes
-│   ├── middleware.py             # X-Server-Time, X-Response-Time
-│   ├── openapi_config.py        # JWT Bearer in Swagger
+├── api/                      # Bolt API package
+│   ├── __init__.py            # BoltAPI instance, middleware, register routes
+│   ├── middleware.py          # X-Server-Time, X-Response-Time
 │   └── routes/
 │       ├── __init__.py          # register_all_routes(api)
 │       ├── health.py            # /health, /ready
@@ -111,7 +103,6 @@ django-bolt-test/
 
 - **Python** 3.13+
 - **[uv](https://github.com/astral-sh/uv)** (recommended) or pip
-- **PostgreSQL** (or set `DATABASES` in settings for SQLite)
 
 ---
 
@@ -125,8 +116,6 @@ uv venv
 uv sync
 # or: pip install -r requirements.txt
 ```
-
-Copy `.env.example` to `.env` and set `SECRET_KEY`, `DB_*` (for PostgreSQL).
 
 ---
 
@@ -161,7 +150,7 @@ uv run manage.py runserver 8001
 
 ## API Documentation (Swagger)
 
-Interactive OpenAPI docs at `/docs` — Auth, Health, Roles, Users, WebSocket and schemas (LoginSchema, TokenSchema, UserSchema, UserCreateSchema, RoleSchema).
+Interactive OpenAPI docs at `/docs` — Auth, Health, Users, WebSocket endpoints and schemas (LoginSchema, TokenSchema, UserSchema, UserCreateSchema).
 
 **Authenticated requests in Swagger:**  
 1. Call **POST /auth/login** with `username` and `password` to get `access_token`.  
@@ -183,12 +172,10 @@ Interactive OpenAPI docs at `/docs` — Auth, Health, Roles, Users, WebSocket an
 | GET | `/health` | Liveness | — |
 | GET | `/ready` | Readiness (DB + checks) | — |
 | POST | `/auth/login` | JWT token (body: `username`, `password`) | — |
-| GET | `/roles` | List roles (ADMIN, SHOPKEEPER, CUSTOMER) | — |
-| GET | `/roles/code/{code}` | Get role by code | — |
-| GET | `/users` | List users (paginated, `?search=`, `?role=`) | — |
+| GET | `/users` | List users (paginated, `?search=`) | — |
 | GET | `/users/{id}` | Get user by ID | — |
 | GET | `/users/me` | Current user | JWT |
-| POST | `/users` | Create user with role (staff only) | JWT + Staff |
+| POST | `/users` | Create user (staff only) | JWT + Staff |
 | WS | `/ws` | Echo WebSocket | — |
 
 - **Response headers** (all): `X-Server-Time`, `X-Response-Time`.
@@ -200,16 +187,15 @@ Interactive OpenAPI docs at `/docs` — Auth, Health, Roles, Users, WebSocket an
 
 ## Testing
 
-Tests use **pytest** with Django Bolt’s sync **TestClient** (no running server). Database tests use pytest-django with `transactional_db`; PostgreSQL test DB teardown is handled in `conftest.py`.
+Tests are written with **[pytest](https://pytest.org/)** (unit and integration). Unit tests need no server; integration tests call the live API and skip automatically if the server is not running (`require_server` fixture).
 
-```bash
-uv run pytest tests/ -v
-```
+| Type | Command | Notes |
+|------|---------|--------|
+| **Unit** | `uv run pytest tests/test_schemas.py -v` | No server; schemas only |
+| **Integration** | `uv run pytest tests/ -v -m integration` | Start server first |
+| **All** | `uv run pytest tests/ -v` | Unit runs; integration skips if server down |
 
-| Type | Command |
-|------|---------|
-| **All** | `uv run pytest tests/ -v` |
-| **Single file** | `uv run pytest tests/test_auth.py -v` |
+**Stack:** pytest, pytest-django, pytest-asyncio, httpx, websockets. Install dev deps: `uv sync --extra dev`.
 
 ---
 
@@ -252,7 +238,6 @@ In `config/settings.py`:
 | `BOLT_JWT_SECRET` | `SECRET_KEY` |
 | `BOLT_JWT_ALGORITHM` | `"HS256"` |
 | `BOLT_JWT_EXPIRES_SECONDS` | `3600` |
-| `AUTH_USER_MODEL` | `"accounts.User"` |
 
 ---
 
