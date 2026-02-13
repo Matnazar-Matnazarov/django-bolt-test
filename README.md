@@ -95,6 +95,13 @@ django-bolt-test/
 ├── loadtest/                    # Load test (Go): faster, higher throughput
 │   ├── main.go
 │   └── go.mod
+├── src/                         # FastAPI (Bolt-compatible, port 8002, uvloop)
+│   ├── main.py                  # app entry, lifespan
+│   ├── config.py                # env, DB config
+│   ├── database.py              # asyncpg pool
+│   ├── middleware.py            # X-Server-Time, X-Response-Time
+│   ├── routers/                 # health, roles, users
+│   └── schemas/                 # Pydantic models
 ├── assets/
 │   └── django-bolt-logo.png     # Django Bolt branding
 ├── manage.py
@@ -152,11 +159,17 @@ uv run uvicorn config.asgi:application --host 0.0.0.0 --port 8001
 uv run manage.py runserver 8001
 ```
 
-| Resource | Bolt (8000) | DRF (8001) |
-|----------|-------------|------------|
-| API | http://localhost:8000 | http://localhost:8001/drf/ |
-| Swagger | http://localhost:8000/docs | — |
-| Admin | http://localhost:8000/admin/ | http://localhost:8001/admin/ |
+**FastAPI** (Bolt-compatible, port 8002):
+```bash
+# Same endpoints as Bolt; uses asyncpg, same DB
+uv run uvicorn src.main:app --host 0.0.0.0 --port 8002 --workers 4
+```
+
+| Resource | Bolt (8000) | DRF (8001) | FastAPI (8002) |
+|----------|-------------|------------|----------------|
+| API | http://localhost:8000 | http://localhost:8001/drf/ | http://localhost:8002 |
+| Swagger | http://localhost:8000/docs | — | http://localhost:8002/docs |
+| Admin | http://localhost:8000/admin/ | http://localhost:8001/admin/ | — |
 
 ---
 
@@ -195,6 +208,8 @@ Interactive OpenAPI docs at `/docs` — Auth, Health, Users, WebSocket endpoints
 
 **DRF** (`/drf/` prefix, port 8001): same endpoints, async. Login `/auth/login/` returns Bolt format (`access_token`, `expires_in`, `token_type`). SimpleJWT at `/auth/login/jwt/`.
 
+**FastAPI** (port 8002): same endpoints as Bolt, asyncpg, same DB. For load test comparison.
+
 ---
 
 ## Testing
@@ -224,6 +239,10 @@ uv run python scripts/load_test.py -a bolt -d 5 -c 50
 # DRF (port 8001) — use uvicorn --workers 4 for load test
 uv run uvicorn config.asgi:application --host 0.0.0.0 --port 8001 --workers 4
 uv run python scripts/load_test.py -a drf -u http://localhost:8001 -d 5 -c 50
+
+# FastAPI (port 8002)
+uv run uvicorn src.main:app --host 0.0.0.0 --port 8002 --workers 4
+uv run python scripts/load_test.py -a fastapi -u http://localhost:8002 -d 5 -c 50
 ```
 
 **Go** (faster, higher throughput, multi-endpoint):
@@ -232,17 +251,18 @@ cd loadtest
 go build -o loadtest .
 ./loadtest -api bolt -duration 5s -concurrency 50
 ./loadtest -api drf -duration 5s -concurrency 50
+./loadtest -api fastapi -duration 5s -concurrency 50
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-a, --api` | `bolt` | API type: `bolt` or `drf` |
-| `-u, --url` | bolt: 8000, drf: 8001 | Base URL |
+| `-a, --api` | `bolt` | API type: `bolt`, `drf`, or `fastapi` |
+| `-u, --url` | bolt: 8000, drf: 8001, fastapi: 8002 | Base URL |
 | `-d, --duration` | `5` (Python) / `5s` (Go) | Duration |
 | `-c, --concurrency` | `20` | Concurrent workers |
 | `-e, --endpoints` | (per API) | Comma-separated endpoints |
 
-Go defaults: Bolt → `/health`, `/health/test`, `/ready`, `/users`, `/roles`; DRF → `/drf/health/`, `/drf/health/test/`, etc.
+Go defaults: Bolt/FastAPI → `/health`, `/health/test`, `/ready`, `/users`, `/roles`; DRF → `/drf/health/`, `/drf/health/test/`, etc.
 
 Pytest integration tests (servers must be running):
 

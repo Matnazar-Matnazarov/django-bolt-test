@@ -1,6 +1,6 @@
 # Load Test (Go)
 
-High-performance load test for **Django Bolt** and **DRF** API endpoints. Measures req/sec, success/fail counts, and latency percentiles (p50, p95, p99).
+High-performance load test for **Django Bolt**, **DRF**, and **FastAPI** API endpoints. Measures req/sec, success/fail counts, and latency percentiles (p50, p95, p99).
 
 ## Prerequisites
 
@@ -27,11 +27,18 @@ go build -o loadtest .
 ./loadtest -api drf -duration 5s -concurrency 50
 ```
 
+**FastAPI** (port 8002):
+
+```bash
+./loadtest -api fastapi -duration 5s -concurrency 50
+```
+
 **Custom endpoints:**
 
 ```bash
 ./loadtest -api bolt -endpoints /health,/health/test,/ready,/users,/roles
 ./loadtest -api drf -endpoints /drf/health/,/drf/health/test/,/drf/ready/,/drf/users/,/drf/roles/
+./loadtest -api fastapi -endpoints /health,/health/test,/ready,/users,/roles
 ```
 
 **Custom URL:**
@@ -39,14 +46,15 @@ go build -o loadtest .
 ```bash
 ./loadtest -api bolt -url http://localhost:8000 -duration 10s -concurrency 100
 ./loadtest -api drf -url http://localhost:8001 -duration 10s -concurrency 100
+./loadtest -api fastapi -url http://localhost:8002 -duration 10s -concurrency 100
 ```
 
 ## Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-api` | `bolt` | API type: `bolt` or `drf` |
-| `-url` | bolt: 8000, drf: 8001 | Base URL |
+| `-api` | `bolt` | API type: `bolt`, `drf`, or `fastapi` |
+| `-url` | bolt: 8000, drf: 8001, fastapi: 8002 | Base URL |
 | `-endpoints` | (per API) | Comma-separated endpoints |
 | `-duration` | 5s | Test duration |
 | `-concurrency` | 20 | Concurrent workers |
@@ -57,6 +65,7 @@ go build -o loadtest .
 |-----|-----------|
 | **bolt** | `/health`, `/health/test`, `/ready`, `/users`, `/roles` |
 | **drf** | `/drf/health/`, `/drf/health/test/`, `/drf/ready/`, `/drf/users/`, `/drf/roles/` |
+| **fastapi** | `/health`, `/health/test`, `/ready`, `/users`, `/roles` |
 
 Workers are distributed across endpoints round-robin.
 
@@ -69,9 +78,13 @@ uv run manage.py runbolt --processes 4 --host localhost --port 8000
 # Terminal 2: DRF (4 workers for load test; reduces fail rate)
 uv run uvicorn config.asgi:application --host 0.0.0.0 --port 8001 --workers 4
 
-# Terminal 3: Load test
+# Terminal 3: FastAPI (optional; same endpoints as Bolt)
+uv run uvicorn src.main:app --host 0.0.0.0 --port 8002 --workers 4
+
+# Terminal 4: Load test
 cd loadtest && ./loadtest -api bolt -duration 5s -concurrency 50
 cd loadtest && ./loadtest -api drf -duration 5s -concurrency 50
+cd loadtest && ./loadtest -api fastapi -duration 5s -concurrency 50
 ```
 
 > **Tip:** DRF with single worker causes high fail rate under load. Use `--workers 4` to match Bolt.

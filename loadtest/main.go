@@ -1,4 +1,4 @@
-// Load test for Django Bolt and DRF API endpoints.
+// Load test for Django Bolt, DRF, and FastAPI endpoints.
 //
 // Benchmarks multiple endpoints in parallel. Measures req/sec, success/fail,
 // and latency percentiles (p50, p95, p99).
@@ -7,6 +7,7 @@
 //
 //	./loadtest -api bolt -duration 5s -concurrency 50
 //	./loadtest -api drf -duration 5s -concurrency 50
+//	./loadtest -api fastapi -duration 5s -concurrency 50
 //	./loadtest -api bolt -endpoints /health,/health/test,/ready,/users,/roles
 package main
 
@@ -80,8 +81,8 @@ func worker(client *http.Client, url string, stop <-chan struct{}, total, succes
 }
 
 func main() {
-	api := flag.String("api", "bolt", "API type: bolt or drf")
-	url := flag.String("url", "", "Base URL (default: bolt=8000, drf=8001)")
+	api := flag.String("api", "bolt", "API type: bolt, drf, or fastapi")
+	url := flag.String("url", "", "Base URL (default: bolt=8000, drf=8001, fastapi=8002)")
 	endpoints := flag.String("endpoints", "", "Comma-separated endpoints (default per API)")
 	dur := flag.Duration("duration", 5*time.Second, "Test duration")
 	concurrency := flag.Int("concurrency", 20, "Concurrent workers")
@@ -89,9 +90,12 @@ func main() {
 
 	baseURL := *url
 	if baseURL == "" {
-		if *api == "drf" {
+		switch *api {
+		case "drf":
 			baseURL = "http://localhost:8001"
-		} else {
+		case "fastapi":
+			baseURL = "http://localhost:8002"
+		default:
 			baseURL = "http://localhost:8000"
 		}
 	}
@@ -176,7 +180,8 @@ func parseEndpoints(api, raw string) []string {
 		}
 	}
 
-	if api == "drf" {
+	switch api {
+	case "drf":
 		return []string{
 			"/drf/health/",
 			"/drf/health/test/",
@@ -184,13 +189,21 @@ func parseEndpoints(api, raw string) []string {
 			"/drf/users/",
 			"/drf/roles/",
 		}
-	}
-
-	return []string{
-		"/health",
-		"/health/test",
-		"/ready",
-		"/users",
-		"/roles",
+	case "fastapi":
+		return []string{
+			"/health",
+			"/health/test",
+			"/ready",
+			"/users",
+			"/roles",
+		}
+	default:
+		return []string{
+			"/health",
+			"/health/test",
+			"/ready",
+			"/users",
+			"/roles",
+		}
 	}
 }
