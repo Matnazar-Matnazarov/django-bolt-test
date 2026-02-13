@@ -5,11 +5,13 @@ Load test script for API endpoints.
 Measures: req/sec, success count, fail count, success rate.
 
 Bolt (runbolt): uv run manage.py runbolt --dev --host localhost --port 8000
-DRF (runserver): uv run manage.py runserver 8001
+DRF (uvicorn): uv run uvicorn config.asgi:application --port 8001
+FastAPI (uvicorn): uv run uvicorn src.main:app --port 8002
 
 Usage:
     uv run python scripts/load_test.py --api bolt
     uv run python scripts/load_test.py --api drf -u http://localhost:8001
+    uv run python scripts/load_test.py --api fastapi -u http://localhost:8002
 """
 
 import argparse
@@ -166,6 +168,15 @@ DRF_DEFAULTS = {
     "url": "http://localhost:8001",
     "endpoints": "/drf/health/,/drf/health/test/,/drf/ready/,/drf/users/,/drf/roles/",
 }
+FASTAPI_DEFAULTS = {
+    "url": "http://localhost:8002",
+    "endpoints": "/health,/health/test,/ready,/users,/roles",
+}
+API_DEFAULTS = {
+    "bolt": BOLT_DEFAULTS,
+    "drf": DRF_DEFAULTS,
+    "fastapi": FASTAPI_DEFAULTS,
+}
 
 
 def main():
@@ -175,9 +186,9 @@ def main():
     parser.add_argument(
         "-a",
         "--api",
-        choices=["bolt", "drf"],
+        choices=["bolt", "drf", "fastapi"],
         default="bolt",
-        help="API type (bolt=runbolt, drf=runserver)",
+        help="API type (bolt, drf, fastapi)",
     )
     parser.add_argument(
         "-u",
@@ -207,12 +218,12 @@ def main():
     )
     args = parser.parse_args()
 
-    defaults = DRF_DEFAULTS if args.api == "drf" else BOLT_DEFAULTS
+    defaults = API_DEFAULTS.get(args.api, BOLT_DEFAULTS)
     base_url = args.url or defaults["url"]
     endpoints_str = args.endpoints or defaults["endpoints"]
     endpoints = [p.strip() for p in endpoints_str.split(",") if p.strip()]
     if not endpoints:
-        endpoints = ["/health"] if args.api == "bolt" else ["/drf/health/"]
+        endpoints = ["/health"]
 
     print(f"Load test: {args.api.upper()} @ {base_url}")
     print(f"  Endpoints: {endpoints}")
